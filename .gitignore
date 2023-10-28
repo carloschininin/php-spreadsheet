@@ -1,0 +1,5 @@
+.idea
+/src/ExportOld
+/var
+/vendor/
+.php_cs.cache

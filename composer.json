@@ -1,0 +1,39 @@
+{
+  "name": "carloschininin/php-spreadsheet",
+  "description": "Utilities for spreadsheet",
+  "type": "library",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Carlos Chininin",
+      "email": "carloschininin@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "^8.1",
+    "ext-zip": "*",
+    "ext-xlswriter": "*",
+    "openspout/openspout": "^4.19",
+    "phpoffice/phpspreadsheet": "^1.15",
+    "symfony/http-foundation": "^6.0"
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^v3.1"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  },
+  "autoload": {
+    "psr-4": {
+      "CarlosChininin\\Spreadsheet\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "CarlosChininin\\Spreadsheet\\Tests\\": "tests/"
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
