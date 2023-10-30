@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace CarlosChininin\Spreadsheet\Writer\OpenSpout;
 
+use CarlosChininin\Spreadsheet\Shared\DataHelper;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\DateTimeCell;
@@ -26,10 +27,15 @@ final class Helper
 
             return new DateTimeCell($value, $style);
         }
+
         if (\is_float($value)) {
             $style = $options && $options->formatDecimal ? (new Style())->setFormat($options->formatDecimal->value) : null;
 
             return new NumericCell($value, $style);
+        }
+
+        if (\is_bool($value)) {
+            return new StringCell(DataHelper::boolToString($value), null);
         }
 
         return Cell::fromValue($value);

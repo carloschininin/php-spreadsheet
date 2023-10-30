@@ -14,16 +14,23 @@ use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 
 class WriterOptions
 {
+    public readonly int $row;
+    public readonly string $col;
+    public ?string $endCol;
+
     public function __construct(
         public readonly SpreadsheetType $type = SpreadsheetType::XLSX,
-        public readonly string $col = 'A',
-        public readonly int $row = 1,
-        public ?string $endCol = null,
+        int $row = 1,
+        string $col = 'A',
+        string $endCol = null,
         public ?int $numCols = null,
         public readonly bool $headerStyle = true,
         public readonly DataFormat $formatDate = DataFormat::DATE_DMYSLASH,
         public readonly DataFormat $formatDecimal = DataFormat::NUMBER_00,
         public readonly ?string $path = null,
     ) {
+        $this->row = $row > 0 ? $row : 1;
+        $this->col = mb_strtoupper($col);
+        $this->endCol = mb_strtoupper($endCol);
     }
 }

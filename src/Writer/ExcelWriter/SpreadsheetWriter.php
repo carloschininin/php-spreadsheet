@@ -31,8 +31,8 @@ class SpreadsheetWriter implements WriterInterface
     protected Excel $writer;
 
     public function __construct(
-        protected readonly array $data = [],
-        protected readonly array $headers = [],
+        protected readonly iterable $data = [],
+        protected readonly iterable $headers = [],
         protected readonly WriterOptions $options = new WriterOptions(),
     ) {
         $this->createExcel();

@@ -12,6 +12,7 @@ namespace CarlosChininin\Spreadsheet\Writer\PhpSpreadsheet;
 use CarlosChininin\Spreadsheet\Shared\Color;
 use CarlosChininin\Spreadsheet\Shared\Column;
 use CarlosChininin\Spreadsheet\Shared\DataFormat;
+use CarlosChininin\Spreadsheet\Shared\DataHelper;
 use CarlosChininin\Spreadsheet\Shared\DataType;
 use CarlosChininin\Spreadsheet\Shared\File;
 use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
@@ -41,8 +42,8 @@ class SpreadsheetWriter implements WriterInterface
     protected string $filePath;
 
     public function __construct(
-        protected readonly array $data = [],
-        protected readonly array $headers = [],
+        protected readonly iterable $data = [],
+        protected readonly iterable $headers = [],
         protected readonly WriterOptions $options = new WriterOptions(),
     ) {
         $this->filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
@@ -59,11 +60,11 @@ class SpreadsheetWriter implements WriterInterface
             $sheet->fromArray($this->data, startCell: $col.($row + 1), strictNullComparison: true);
         } else {
             $startRow = $row + 1;
-            $startCol = \ord($this->col()) - 1;
+            $startCol = \ord($this->col()) - \ord('A');
             foreach ($this->data as $dataRow) {
                 $column = $startCol;
                 foreach ($dataRow as $value) {
-                    $this->setCellValue(Column::numberToLabel(++$column), $startRow, $value);
+                    $this->setCellValue(++$column, $startRow, $value);
                 }
                 ++$startRow;
             }
@@ -86,7 +87,7 @@ class SpreadsheetWriter implements WriterInterface
         }
 
         $sheet = $this->writer->getActiveSheet();
-        $position = $col.$row;
+        $position = $this->positionCell($col, $row);
         if ($value instanceof \DateTimeInterface) {
             $value = Date::dateTimeToExcel($value);
             $format = $format ?? $this->options->formatDate;
@@ -100,6 +101,12 @@ class SpreadsheetWriter implements WriterInterface
             $format = $format ?? $this->options->formatDecimal;
             $sheet->setCellValue($position, $value);
             $sheet->getStyle($position)->getNumberFormat()->setFormatCode($format->value);
+
+            return $this;
+        }
+
+        if (\is_bool($value)) {
+            $sheet->setCellValue($position, DataHelper::boolToString($value));
 
             return $this;
         }
@@ -134,6 +141,15 @@ class SpreadsheetWriter implements WriterInterface
         }
 
         return $this;
+    }
+
+    protected function positionCell(string|int $col, int $row): array|string
+    {
+        if (\is_string($col)) {
+            return $col.$row;
+        }
+
+        return [$col, $row];
     }
 
     protected function saveFile(): void
