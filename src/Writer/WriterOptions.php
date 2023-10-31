@@ -31,6 +31,6 @@ class WriterOptions
     ) {
         $this->row = $row > 0 ? $row : 1;
         $this->col = mb_strtoupper($col);
-        $this->endCol = mb_strtoupper($endCol);
+        $this->endCol = $endCol ? mb_strtoupper($endCol) : null;
     }
 }
