@@ -13,6 +13,7 @@ use CarlosChininin\Spreadsheet\Shared\DataHelper;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\DateTimeCell;
+use OpenSpout\Common\Entity\Cell\EmptyCell;
 use OpenSpout\Common\Entity\Cell\NumericCell;
 use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
@@ -36,6 +37,14 @@ final class Helper
 
         if (\is_bool($value)) {
             return new StringCell(DataHelper::boolToString($value), null);
+        }
+
+        if (\is_object($value)) {
+            if (\method_exists($value, '__toString')) {
+                return new StringCell((string) $value, null);
+            }
+
+            return new EmptyCell(null, null);
         }
 
         return Cell::fromValue($value);
