@@ -14,6 +14,8 @@ enum DataType: string
     case STRING = 's';
     case FORMULA = 'f';
     case NUMERIC = 'n';
+    case FLOAT = 'fl';
+    case INT = 'in';
     case BOOL = 'b';
     case NULL = 'null';
     case ERROR = 'e';

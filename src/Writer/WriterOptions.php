@@ -27,6 +27,7 @@ class WriterOptions
         public readonly bool $headerStyle = true,
         public readonly DataFormat $formatDate = DataFormat::DATE_DMYSLASH,
         public readonly DataFormat $formatDecimal = DataFormat::NUMBER_00,
+        public readonly array $dataTypes = [],
         public readonly ?string $path = null,
     ) {
         $this->row = $row > 0 ? $row : 1;
