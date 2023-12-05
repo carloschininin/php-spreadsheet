@@ -82,6 +82,16 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
+    public function mergeCells(string $start, string $end, mixed $value = null, array $style = null): static
+    {
+        return $this;
+    }
+
+    public function styleCells(string $start, string $end, array $style): static
+    {
+        return $this;
+    }
+
     public function download(string $fileName, bool $useZip = false): Response
     {
         $fileName = File::updateFileName($fileName, $this->options->type);

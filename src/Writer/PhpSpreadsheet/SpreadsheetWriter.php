@@ -15,6 +15,7 @@ use CarlosChininin\Spreadsheet\Shared\DataFormat;
 use CarlosChininin\Spreadsheet\Shared\DataHelper;
 use CarlosChininin\Spreadsheet\Shared\DataType;
 use CarlosChininin\Spreadsheet\Shared\File;
+use CarlosChininin\Spreadsheet\Shared\Range;
 use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 use CarlosChininin\Spreadsheet\Writer\WriterException;
 use CarlosChininin\Spreadsheet\Writer\WriterInterface;
@@ -115,6 +116,45 @@ class SpreadsheetWriter implements WriterInterface
             $sheet->setCellValue($position, $value);
         } else {
             $sheet->setCellValueExplicit($position, $value, $type->value);
+        }
+
+        return $this;
+    }
+
+    public function mergeCells(string $start, string $end, mixed $value = null, array $style = null): static
+    {
+        $range = $start.':'.$end;
+        $sheet = $this->writer->getActiveSheet();
+        try {
+            $sheet->mergeCells($range);
+        } catch (Exception) {
+            throw new WriterException('Failed merge cells');
+        }
+
+        if (null !== $value) {
+            $sheet->setCellValue($start, $value);
+        }
+        if (null !== $style) {
+            try {
+                $sheet->getStyle($range)->applyFromArray($style);
+            } catch (Exception) {
+                throw new WriterException('Failed style cells');
+            }
+        }
+
+        return $this;
+    }
+
+    public function styleCells(string $start, string $end, array $style): static
+    {
+        try {
+            $range = $start.':'.$end;
+            $this->writer->getActiveSheet()
+                ->getStyle($range)
+                ->applyFromArray($style);
+
+        } catch (Exception) {
+            throw new WriterException('Failed style cells');
         }
 
         return $this;

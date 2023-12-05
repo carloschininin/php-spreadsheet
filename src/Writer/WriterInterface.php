@@ -27,4 +27,7 @@ interface WriterInterface
 
     // Only PHPSpreadsheet
     public function columnAutoSize(string $start = null, string $end = null): static;
+
+    public function mergeCells(string $start, string $end, mixed $value = null, array $style = null): static;
+    public function styleCells(string $start, string $end, array $style): static;
 }
