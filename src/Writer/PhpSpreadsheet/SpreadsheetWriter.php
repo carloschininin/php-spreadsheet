@@ -183,31 +183,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    protected function positionCell(string|int $col, int $row): array|string
-    {
-        if (\is_string($col)) {
-            return $col.$row;
-        }
-
-        return [$col, $row];
-    }
-
-    protected function saveFile(): void
-    {
-        $writer = match ($this->options->type) {
-            SpreadsheetType::CSV => new Csv($this->writer),
-            SpreadsheetType::ODS => new Ods($this->writer),
-            default => new Xlsx($this->writer),
-        };
-
-        try {
-            $writer->save($this->filePath);
-        } catch (Exception) {
-            throw new WriterException('failed save file');
-        }
-    }
-
-    protected function headerStyle(): array
+    public function headerStyle(): array
     {
         return [
             'font' => [
@@ -237,5 +213,29 @@ class SpreadsheetWriter implements WriterInterface
                 ],
             ],
         ];
+    }
+
+    protected function positionCell(string|int $col, int $row): array|string
+    {
+        if (\is_string($col)) {
+            return $col.$row;
+        }
+
+        return [$col, $row];
+    }
+
+    protected function saveFile(): void
+    {
+        $writer = match ($this->options->type) {
+            SpreadsheetType::CSV => new Csv($this->writer),
+            SpreadsheetType::ODS => new Ods($this->writer),
+            default => new Xlsx($this->writer),
+        };
+
+        try {
+            $writer->save($this->filePath);
+        } catch (Exception) {
+            throw new WriterException('failed save file');
+        }
     }
 }
