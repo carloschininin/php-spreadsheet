@@ -26,8 +26,9 @@ interface WriterInterface
     public function setCellValue(string|int $col, int $row, mixed $value, DataFormat $format = null, DataType $type = null): static;
 
     // Only PHPSpreadsheet
-    public function columnAutoSize(string $start = null, string $end = null): static;
-
-    public function mergeCells(string $start, string $end, mixed $value = null, array $style = null): static;
-    public function styleCells(string $start, string $end, array $style): static;
+    public function columnAutoSize(string|int $start = null, string|int $end = null): static;
+    public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static;
+    public function styleCells(string|array $start, string|array $end, array $style): static;
+    public function fromArray(string|int $col, int $row, mixed $data): static;
+    public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static;
 }

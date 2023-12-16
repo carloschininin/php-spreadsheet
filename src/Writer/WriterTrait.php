@@ -45,4 +45,25 @@ trait WriterTrait
     {
         return $this->col().$this->row().':'.$this->endCol().$this->row();
     }
+
+    public function positionCell(string|int $col, int $row): array|string
+    {
+        if (\is_string($col)) {
+            return $col.$row;
+        }
+
+        return [$col, $row];
+    }
+
+    public function positionRange(string|array $start, string|array $end = null): array|string
+    {
+        if (\is_string($start) && (\is_string($end) || null === $end)) {
+            return $start.':'.$end ?: $start;
+        }
+        if (\is_array($start) && (\is_array($end) || null === $end)) {
+            return [...$start, ...($end ?: $start)];
+        }
+
+        throw new WriterException('Range bad formated');
+    }
 }

@@ -15,7 +15,6 @@ use CarlosChininin\Spreadsheet\Shared\DataFormat;
 use CarlosChininin\Spreadsheet\Shared\DataHelper;
 use CarlosChininin\Spreadsheet\Shared\DataType;
 use CarlosChininin\Spreadsheet\Shared\File;
-use CarlosChininin\Spreadsheet\Shared\Range;
 use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 use CarlosChininin\Spreadsheet\Writer\WriterException;
 use CarlosChininin\Spreadsheet\Writer\WriterInterface;
@@ -121,9 +120,19 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function mergeCells(string $start, string $end, mixed $value = null, array $style = null): static
+    public function fromArray(string|int $col, int $row, mixed $data): static
     {
-        $range = $start.':'.$end;
+        $col = \is_string($col) ? $col : Column::numberToLabel($col + \ord('A'));
+
+        $this->writer->getActiveSheet()
+            ->fromArray($data, startCell: $col.$row, strictNullComparison: true);
+
+        return $this;
+    }
+
+    public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static
+    {
+        $range = $this->positionRange($start, $end);
         $sheet = $this->writer->getActiveSheet();
         try {
             $sheet->mergeCells($range);
@@ -145,14 +154,22 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function styleCells(string $start, string $end, array $style): static
+    public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static
+    {
+        $range = $this->positionRange($start, $end);
+        $this->writer->getActiveSheet()
+            ->getStyle($range)->getNumberFormat()->setFormatCode($format->value);
+
+        return $this;
+    }
+
+    public function styleCells(string|array $start, string|array $end, array $style): static
     {
         try {
-            $range = $start.':'.$end;
+            $range = $this->positionRange($start, $end);
             $this->writer->getActiveSheet()
                 ->getStyle($range)
                 ->applyFromArray($style);
-
         } catch (Exception) {
             throw new WriterException('Failed style cells');
         }
@@ -170,11 +187,20 @@ class SpreadsheetWriter implements WriterInterface
             : File::download($fileName, $this->filePath);
     }
 
-    public function columnAutoSize(string $start = null, string $end = null): static
+    public function columnAutoSize(string|int $start = null, string|int $end = null): static
     {
         $sheet = $this->writer->getActiveSheet();
-        $columnStart = $start ? \ord($start) : \ord($this->col());
-        $columnEnd = $end ? \ord($end) : ($this->numCols() + $columnStart + 1);
+        if (\is_int($start)) {
+            $columnStart = $start + \ord('A') - 1;
+        } else {
+            $columnStart = $start ? \ord($start) : \ord($this->col());
+        }
+
+        if (\is_int($end)) {
+            $columnEnd = $end + \ord('A') - 1;
+        } else {
+            $columnEnd = $end ? \ord($end) : ($this->numCols() + $columnStart + 1);
+        }
 
         for ($i = $columnStart; $i <= $columnEnd; ++$i) {
             $sheet->getColumnDimension(Column::numberToLabel($i))->setAutoSize(true);
@@ -215,16 +241,7 @@ class SpreadsheetWriter implements WriterInterface
         ];
     }
 
-    protected function positionCell(string|int $col, int $row): array|string
-    {
-        if (\is_string($col)) {
-            return $col.$row;
-        }
-
-        return [$col, $row];
-    }
-
-    protected function saveFile(): void
+    public function saveFile(): void
     {
         $writer = match ($this->options->type) {
             SpreadsheetType::CSV => new Csv($this->writer),

@@ -82,12 +82,12 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function mergeCells(string $start, string $end, mixed $value = null, array $style = null): static
+    public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static
     {
         return $this;
     }
 
-    public function styleCells(string $start, string $end, array $style): static
+    public function styleCells(string|array $start, string|array $end, array $style): static
     {
         return $this;
     }
@@ -101,13 +101,25 @@ class SpreadsheetWriter implements WriterInterface
             : File::download($fileName, $this->filePath);
     }
 
-    public function columnAutoSize(string $start = null, string $end = null): static
+    public function columnAutoSize(string|int $start = null, string|int $end = null): static
     {
         // No implement in this library
         return $this;
     }
 
-    protected function headerStyle(): Style
+    public function fromArray(string|int $col, int $row, mixed $data): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function headerStyle(): Style
     {
         $style = new Style();
         $style->setFontBold();
