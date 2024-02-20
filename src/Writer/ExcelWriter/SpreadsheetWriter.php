@@ -103,7 +103,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function fromArray(string|int $col, int $row, mixed $data): static
+    public function fromArray(string|int $col, int $row, mixed $data, mixed $style = null): static
     {
         // No implement in this library
         return $this;

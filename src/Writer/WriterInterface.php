@@ -29,6 +29,6 @@ interface WriterInterface
     public function columnAutoSize(string|int $start = null, string|int $end = null): static;
     public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static;
     public function styleCells(string|array $start, string|array $end, array $style): static;
-    public function fromArray(string|int $col, int $row, mixed $data): static;
+    public function fromArray(string|int $col, int $row, mixed $data, mixed $style = null): static;
     public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static;
 }

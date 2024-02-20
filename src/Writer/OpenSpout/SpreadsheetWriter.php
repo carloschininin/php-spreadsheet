@@ -27,6 +27,7 @@ use OpenSpout\Common\Exception\InvalidArgumentException;
 use OpenSpout\Common\Exception\IOException;
 use OpenSpout\Writer\AbstractWriter;
 use OpenSpout\Writer\CSV\Writer as CsvWriter;
+use OpenSpout\Writer\Exception\InvalidSheetNameException;
 use OpenSpout\Writer\Exception\WriterNotOpenedException;
 use OpenSpout\Writer\ODS\Writer as OdsWriter;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
@@ -41,6 +42,7 @@ class SpreadsheetWriter implements WriterInterface
 
     protected AbstractWriter $writer;
     protected string $filePath;
+    protected WriterState $state = WriterState::Close;
 
     public function __construct(
         protected readonly iterable $data = [],
@@ -94,6 +96,11 @@ class SpreadsheetWriter implements WriterInterface
 
     public function download(string $fileName, bool $useZip = false): Response
     {
+        if (WriterState::Open === $this->state) {
+            $this->state = WriterState::Close;
+            $this->writer->close();
+        }
+
         $fileName = File::updateFileName($fileName, $this->options->type);
 
         return $useZip
@@ -107,9 +114,29 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function fromArray(string|int $col, int $row, mixed $data): static
+    public function fromArray(string|int $col, int $row, mixed $data, mixed $style = null): static
     {
-        // No implement in this library
+        try {
+            if (WriterState::Close === $this->state) {
+                $this->state = WriterState::Open;
+                $this->writer->openToFile($this->filePath);
+                if ($this->options->nameSheet) {
+                    $sheet = $this->writer->getCurrentSheet();
+                    $sheet->setName(mb_substr($this->options->nameSheet, 0, 31));
+                }
+            }
+
+            foreach ($data as $dataRow) {
+                $row = $style
+                    ? Helper::createRowHeader($dataRow, $style)
+                    : Helper::createRow($dataRow, $this->options);
+
+                $this->writer->addRow($row);
+            }
+        } catch (IOException|WriterNotOpenedException|InvalidSheetNameException $e) {
+            throw new WriterException('Failed create spreadsheet: '.$e->getMessage());
+        }
+
         return $this;
     }
 
@@ -141,5 +168,20 @@ class SpreadsheetWriter implements WriterInterface
         $style->setBorder($border);
 
         return $style;
+    }
+
+    public function addSheet(string $name): void
+    {
+        try {
+            if (WriterState::Close === $this->state) {
+                $this->state = WriterState::Open;
+                $this->writer->openToFile($this->filePath);
+            }
+
+            $sheet = $this->writer->addNewSheetAndMakeItCurrent();
+            $sheet->setName($name);
+        } catch (IOException|WriterNotOpenedException|InvalidSheetNameException $e) {
+            throw new WriterException($e->getMessage());
+        }
     }
 }
