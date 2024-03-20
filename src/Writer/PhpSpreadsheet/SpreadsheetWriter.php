@@ -28,6 +28,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Ods;
+use PhpOffice\PhpSpreadsheet\Writer\Xls;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -246,6 +247,7 @@ class SpreadsheetWriter implements WriterInterface
         $writer = match ($this->options->type) {
             SpreadsheetType::CSV => new Csv($this->writer),
             SpreadsheetType::ODS => new Ods($this->writer),
+            SpreadsheetType::XLS => new Xls($this->writer),
             default => new Xlsx($this->writer),
         };
 
