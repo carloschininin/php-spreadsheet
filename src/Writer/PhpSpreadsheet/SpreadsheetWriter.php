@@ -123,10 +123,20 @@ class SpreadsheetWriter implements WriterInterface
 
     public function fromArray(string|int $col, int $row, mixed $data, mixed $style = null): static
     {
-        $col = \is_string($col) ? $col : Column::numberToLabel($col + \ord('A'));
+        $colLabel = \is_string($col) ? $col : Column::numberToLabel($col + \ord('A') - 1);
 
-        $this->writer->getActiveSheet()
-            ->fromArray($data, startCell: $col.$row, strictNullComparison: true);
+        $sheet = $this->writer->getActiveSheet();
+        $sheet->fromArray($data, startCell: $colLabel.$row, strictNullComparison: true);
+
+        if (null !== $style) {
+            $count = isset($data[0]) ? count($data[0]) - 1 : 0;
+            $range = $this->positionRange([$col, $row], [$col + $count, $row]);
+            try {
+                $sheet->getStyle($range)->applyFromArray($style);
+            } catch (Exception) {
+                throw new WriterException('Failed style cells');
+            }
+        }
 
         return $this;
     }
