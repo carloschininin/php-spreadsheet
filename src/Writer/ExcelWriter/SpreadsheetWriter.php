@@ -46,7 +46,7 @@ class SpreadsheetWriter implements WriterInterface
         };
     }
 
-    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat $format = null, DataType $type = null): static
+    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string $format = null, DataType $type = null): static
     {
         if (null === $value) {
             return $this;
@@ -109,7 +109,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static
+    public function formatCells(DataFormat|string $format, string|array $start, string|array $end = null): static
     {
         // No implement in this library
         return $this;
@@ -185,5 +185,29 @@ class SpreadsheetWriter implements WriterInterface
             ->align(Format::FORMAT_ALIGN_JUSTIFY, Format::FORMAT_ALIGN_VERTICAL_CENTER)
 //            ->background(Format::COLOR_SILVER)
             ->toResource();
+    }
+
+    public function addSheet(string $title, bool $isActive = true): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function activeSheet(string $title): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function removeInitialSheet(): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function renameSheet(int|string $sheetIndexOrTitle, string $newTitle): bool
+    {
+        // No implement in this library
+        return true;
     }
 }

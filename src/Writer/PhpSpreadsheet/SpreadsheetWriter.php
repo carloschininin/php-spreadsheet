@@ -20,12 +20,14 @@ use CarlosChininin\Spreadsheet\Writer\WriterException;
 use CarlosChininin\Spreadsheet\Writer\WriterInterface;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use CarlosChininin\Spreadsheet\Writer\WriterTrait;
+use InvalidArgumentException;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Ods;
 use PhpOffice\PhpSpreadsheet\Writer\Xls;
@@ -49,6 +51,7 @@ class SpreadsheetWriter implements WriterInterface
     ) {
         $this->filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
         $this->writer = new Spreadsheet();
+        $this->processOptions($this->options);
     }
 
     public function execute(bool $direct = true): static
@@ -81,27 +84,29 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat $format = null, DataType $type = null): static
+    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string $format = null, DataType $type = null): static
     {
         if (null === $value) {
             return $this;
         }
 
+        $format = $format instanceOf DataFormat ? $format->value : $format;
+
         $sheet = $this->writer->getActiveSheet();
         $position = $this->positionCell($col, $row);
         if ($value instanceof \DateTimeInterface) {
             $value = Date::dateTimeToExcel($value);
-            $format = $format ?? $this->options->formatDate;
+            $format = $format ?? $this->options->formatDate->value;
             $sheet->setCellValue($position, $value);
-            $sheet->getStyle($position)->getNumberFormat()->setFormatCode($format->value);
+            $sheet->getStyle($position)->getNumberFormat()->setFormatCode($format);
 
             return $this;
         }
 
         if (\is_float($value)) {
-            $format = $format ?? $this->options->formatDecimal;
+            $format = $format ?? $this->options->formatDecimal->value;
             $sheet->setCellValue($position, $value);
-            $sheet->getStyle($position)->getNumberFormat()->setFormatCode($format->value);
+            $sheet->getStyle($position)->getNumberFormat()->setFormatCode($format);
 
             return $this;
         }
@@ -165,11 +170,12 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static
+    public function formatCells(DataFormat|string $format, string|array $start, string|array $end = null): static
     {
+        $format = $format instanceOf DataFormat ? $format->value : $format;
         $range = $this->positionRange($start, $end);
         $this->writer->getActiveSheet()
-            ->getStyle($range)->getNumberFormat()->setFormatCode($format->value);
+            ->getStyle($range)->getNumberFormat()->setFormatCode($format);
 
         return $this;
     }
@@ -265,6 +271,64 @@ class SpreadsheetWriter implements WriterInterface
             $writer->save($this->filePath);
         } catch (Exception) {
             throw new WriterException('failed save file');
+        }
+    }
+
+    public function addSheet(string $title, bool $isActive = true): static
+    {
+        $this->writer->addSheet(new Worksheet($this->writer, $title));
+        if ($isActive) {
+            $this->activeSheet($title);
+        }
+
+        return $this;
+    }
+
+    public function activeSheet(string $title): static
+    {
+        $this->writer->setActiveSheetIndexByName($title);
+
+        return $this;
+    }
+
+    public function removeInitialSheet(): static
+    {
+        $this->writer->removeSheetByIndex(0);
+
+        return $this;
+    }
+
+    public function renameSheet(int|string $sheetIndexOrTitle, string $newTitle): bool
+    {
+        if (empty($newTitle) || strlen($newTitle) > 31) {
+            throw new InvalidArgumentException("El título de la hoja debe tener entre 1 y 31 caracteres");
+        }
+
+        if (preg_match('/[\\:*?\/\[\]]/', $newTitle)) {
+            throw new InvalidArgumentException("El título contiene caracteres no permitidos: \\ : * ? / [ ]");
+        }
+
+        try {
+            $sheet = is_string($sheetIndexOrTitle)
+                ? $this->writer->getSheetByName($sheetIndexOrTitle)
+                : $this->writer->getSheet($sheetIndexOrTitle);
+
+            $sheet->setTitle($newTitle);
+            return true;
+        } catch (\Exception $e) {
+            error_log("Error al renombrar hoja: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    protected function processOptions(WriterOptions $options): void
+    {
+        if ($options->nameSheet) {
+            $this->renameSheet(0, $this->options->nameSheet);
+        }
+
+        if ($options->removeSheet) {
+            $this->removeInitialSheet();
         }
     }
 }

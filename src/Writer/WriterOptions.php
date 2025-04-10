@@ -30,6 +30,7 @@ class WriterOptions
         public readonly array $dataTypes = [],
         public readonly ?string $path = null,
         public readonly ?string $nameSheet = null,
+        public readonly ?bool $removeSheet = false,
     ) {
         $this->row = $row > 0 ? $row : 1;
         $this->col = mb_strtoupper($col);

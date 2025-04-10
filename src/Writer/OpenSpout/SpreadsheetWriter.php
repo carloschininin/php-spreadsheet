@@ -44,6 +44,9 @@ class SpreadsheetWriter implements WriterInterface
     protected string $filePath;
     protected WriterState $state = WriterState::Close;
 
+    /**
+     * @throws \Exception
+     */
     public function __construct(
         protected readonly iterable $data = [],
         protected readonly iterable $headers = [],
@@ -79,7 +82,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat $format = null, DataType $type = null): static
+    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string $format = null, DataType $type = null): static
     {
         return $this;
     }
@@ -140,7 +143,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function formatCells(DataFormat $format, string|array $start, string|array $end = null): static
+    public function formatCells(DataFormat|string $format, string|array $start, string|array $end = null): static
     {
         // No implement in this library
         return $this;
@@ -170,7 +173,7 @@ class SpreadsheetWriter implements WriterInterface
         return $style;
     }
 
-    public function addSheet(string $name): void
+    public function addSheet(string $title, bool $isActive = true): static
     {
         try {
             if (WriterState::Close === $this->state) {
@@ -179,9 +182,29 @@ class SpreadsheetWriter implements WriterInterface
             }
 
             $sheet = $this->writer->addNewSheetAndMakeItCurrent();
-            $sheet->setName($name);
+            $sheet->setName($title);
         } catch (IOException|WriterNotOpenedException|InvalidSheetNameException $e) {
             throw new WriterException($e->getMessage());
         }
+
+        return $this;
+    }
+
+    public function activeSheet(string $title): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function removeInitialSheet(): static
+    {
+        // No implement in this library
+        return $this;
+    }
+
+    public function renameSheet(int|string $sheetIndexOrTitle, string $newTitle): bool
+    {
+        // No implement in this library
+        return true;
     }
 }
