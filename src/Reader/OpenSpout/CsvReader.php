@@ -15,7 +15,7 @@ use OpenSpout\Reader\CSV\Reader;
 
 class CsvReader
 {
-    public const DELIMITER = ';';
+    public const string DELIMITER = ';';
 
     public static function create(ReaderOptions $defaultOptions): Reader
     {

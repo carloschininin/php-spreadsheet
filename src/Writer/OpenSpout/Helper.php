@@ -59,7 +59,7 @@ final class Helper
     public static function createRow(array $dataRow, ?WriterOptions $options): Row
     {
         $row = new Row([]);
-        foreach ($dataRow as $key => &$value) {
+        foreach ($dataRow as $key => $value) {
             $row->addCell(self::valueToCell($value, $options, $key));
         }
 
@@ -69,7 +69,7 @@ final class Helper
     public static function createRowHeader(array $dataRow, Style $rowStyle = null): Row
     {
         $row = new Row([]);
-        foreach ($dataRow as &$value) {
+        foreach ($dataRow as $value) {
             $row->addCell(new StringCell($value, $rowStyle));
         }
 

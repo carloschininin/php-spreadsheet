@@ -12,13 +12,13 @@ namespace CarlosChininin\Spreadsheet\Shared;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Exception;
 
-class Range
+readonly class Range
 {
-    public readonly string $value;
-    public readonly int|string $firstColumn;
-    public readonly int $firstRow;
-    public readonly int|string $lastColumn;
-    public readonly int $lastRow;
+    public string $value;
+    public int|string $firstColumn;
+    public int $firstRow;
+    public int|string $lastColumn;
+    public int $lastRow;
 
     private function __construct(string $range, $numberColumn = false)
     {

@@ -9,10 +9,10 @@ declare(strict_types=1);
 
 namespace CarlosChininin\Spreadsheet\Reader;
 
-class ReaderOptions
+readonly class ReaderOptions
 {
     public function __construct(
-        public readonly ?string $fieldDelimiter = null,
+        public ?string $fieldDelimiter = null,
     ) {
     }
 }

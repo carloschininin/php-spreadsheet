@@ -15,7 +15,9 @@ use CarlosChininin\Spreadsheet\Reader\ReaderOptions;
 use CarlosChininin\Spreadsheet\Reader\ReaderTrait;
 use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Exception\IOException;
 use OpenSpout\Reader\AbstractReader;
+use OpenSpout\Reader\Exception\ReaderNotOpenedException;
 use OpenSpout\Reader\SheetInterface;
 
 class SpreadsheetReader implements ReaderInterface
@@ -43,38 +45,46 @@ class SpreadsheetReader implements ReaderInterface
 
     public function data(bool $multipleSheet = false): array
     {
-        $this->reader->open($this->fileName);
-        $sheetIterator = $this->reader->getSheetIterator();
-        $cells = [];
-        foreach ($sheetIterator as $sheet) {
-            if (!$multipleSheet) {
-                $cells = $this->getDataSheet($sheet);
-                break;
+        try {
+            $this->reader->open($this->fileName);
+            $sheetIterator = $this->reader->getSheetIterator();
+            $cells = [];
+            foreach ($sheetIterator as $sheet) {
+                if (!$multipleSheet) {
+                    $cells = $this->getDataSheet($sheet);
+                    break;
+                }
+
+                $cells[$sheet->getName()] = $this->getDataSheet($sheet);
             }
 
-            $cells[$sheet->getName()] = $this->getDataSheet($sheet);
+            $this->reader->close();
+
+            return $cells;
+        } catch (IOException|ReaderNotOpenedException $e) {
+            throw new ReaderException($e->getMessage());
         }
-
-        $this->reader->close();
-
-        return $cells;
     }
 
     public function iterator(callable $callback): static
     {
-        $this->reader->open($this->fileName);
-        $sheetIterator = $this->reader->getSheetIterator();
-        foreach ($sheetIterator as $sheet) {
-            foreach ($sheet->getRowIterator() as $index => $row) {
-                $cells = array_map(fn (Cell $cell) => $cell->getValue(), $row->getCells());
-                \call_user_func($callback, $cells, $index);
+        try {
+            $this->reader->open($this->fileName);
+            $sheetIterator = $this->reader->getSheetIterator();
+            foreach ($sheetIterator as $sheet) {
+                foreach ($sheet->getRowIterator() as $index => $row) {
+                    $cells = array_map(fn (Cell $cell) => $cell->getValue(), $row->getCells());
+                    \call_user_func($callback, $cells, $index);
+                }
+
+                break; // only first sheet
             }
+            $this->reader->close();
 
-            break; // only first sheet
+            return $this;
+        } catch (IOException|ReaderNotOpenedException $e) {
+            throw new ReaderException($e->getMessage());
         }
-        $this->reader->close();
-
-        return $this;
     }
 
     protected function startReader(string $fileName, ?ReaderOptions $options): void

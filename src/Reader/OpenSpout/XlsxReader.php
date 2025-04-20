@@ -9,9 +9,9 @@ use OpenSpout\Reader\XLSX\Reader;
 
 class XlsxReader
 {
-    public static function create(ReaderOptions $options): Reader
+    public static function create(?ReaderOptions $options): Reader
     {
-        $options = new Options();
+        $options = $options ?? new Options();
 //        $options->SHOULD_FORMAT_DATES = true;
 
         return new Reader($options);

@@ -17,7 +17,7 @@ final class OdsReader
 {
     public static function create(?ReaderOptions $options): Reader
     {
-        $options = new Options();
+        $options = $options ?? new Options();
 
         return new Reader($options);
     }
