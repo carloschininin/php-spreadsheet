@@ -31,12 +31,12 @@ class SpreadsheetReader implements ReaderInterface
         $this->startReader($fileName, $options);
     }
 
-    public static function create(string $fileName, ReaderOptions $options = null): static
+    public static function create(string $fileName, ?ReaderOptions $options = null): static
     {
         return new self($fileName, $options ?? new ReaderOptions());
     }
 
-    public function load(string $fileName, ReaderOptions $options = null): static
+    public function load(string $fileName, ?ReaderOptions $options = null): static
     {
         $this->startReader($fileName, $options);
 

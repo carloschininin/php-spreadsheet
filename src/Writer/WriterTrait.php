@@ -55,7 +55,7 @@ trait WriterTrait
         return [$col, $row];
     }
 
-    public function positionRange(string|array $start, string|array $end = null): array|string
+    public function positionRange(string|array $start, string|array|null $end = null): array|string
     {
         if (\is_string($start) && (\is_string($end) || null === $end)) {
             return $start.':'.$end ?: $start;

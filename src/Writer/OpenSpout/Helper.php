@@ -66,7 +66,7 @@ final class Helper
         return $row;
     }
 
-    public static function createRowHeader(array $dataRow, Style $rowStyle = null): Row
+    public static function createRowHeader(array $dataRow, ?Style $rowStyle = null): Row
     {
         $row = new Row([]);
         foreach ($dataRow as $value) {

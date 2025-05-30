@@ -34,7 +34,7 @@ use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Spreadsheet writer medium
+ * Spreadsheet writer medium.
  */
 class SpreadsheetWriter implements WriterInterface
 {
@@ -82,12 +82,12 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string $format = null, DataType $type = null): static
+    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string|null $format = null, ?DataType $type = null): static
     {
         return $this;
     }
 
-    public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static
+    public function mergeCells(string|array $start, string|array $end, mixed $value = null, ?array $style = null): static
     {
         return $this;
     }
@@ -111,7 +111,7 @@ class SpreadsheetWriter implements WriterInterface
             : File::download($fileName, $this->filePath);
     }
 
-    public function columnAutoSize(string|int $start = null, string|int $end = null): static
+    public function columnAutoSize(string|int|null $start = null, string|int|null $end = null): static
     {
         // No implement in this library
         return $this;
@@ -143,7 +143,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function formatCells(DataFormat|string $format, string|array $start, string|array $end = null): static
+    public function formatCells(DataFormat|string $format, string|array $start, string|array|null $end = null): static
     {
         // No implement in this library
         return $this;

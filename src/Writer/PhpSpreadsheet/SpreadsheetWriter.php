@@ -20,7 +20,6 @@ use CarlosChininin\Spreadsheet\Writer\WriterException;
 use CarlosChininin\Spreadsheet\Writer\WriterInterface;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use CarlosChininin\Spreadsheet\Writer\WriterTrait;
-use InvalidArgumentException;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -35,7 +34,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Spreadsheet writer slow
+ * Spreadsheet writer slow.
  */
 class SpreadsheetWriter implements WriterInterface
 {
@@ -84,13 +83,13 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string $format = null, DataType $type = null): static
+    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string|null $format = null, ?DataType $type = null): static
     {
         if (null === $value) {
             return $this;
         }
 
-        $format = $format instanceOf DataFormat ? $format->value : $format;
+        $format = $format instanceof DataFormat ? $format->value : $format;
 
         $sheet = $this->writer->getActiveSheet();
         $position = $this->positionCell($col, $row);
@@ -146,7 +145,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static
+    public function mergeCells(string|array $start, string|array $end, mixed $value = null, ?array $style = null): static
     {
         $range = $this->positionRange($start, $end);
         $sheet = $this->writer->getActiveSheet();
@@ -170,9 +169,9 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function formatCells(DataFormat|string $format, string|array $start, string|array $end = null): static
+    public function formatCells(DataFormat|string $format, string|array $start, string|array|null $end = null): static
     {
-        $format = $format instanceOf DataFormat ? $format->value : $format;
+        $format = $format instanceof DataFormat ? $format->value : $format;
         $range = $this->positionRange($start, $end);
         $this->writer->getActiveSheet()
             ->getStyle($range)->getNumberFormat()->setFormatCode($format);
@@ -204,7 +203,7 @@ class SpreadsheetWriter implements WriterInterface
             : File::download($fileName, $this->filePath);
     }
 
-    public function columnAutoSize(string|int $start = null, string|int $end = null): static
+    public function columnAutoSize(string|int|null $start = null, string|int|null $end = null): static
     {
         $sheet = $this->writer->getActiveSheet();
         if (\is_int($start)) {
@@ -300,12 +299,12 @@ class SpreadsheetWriter implements WriterInterface
 
     public function renameSheet(int|string $sheetIndexOrTitle, string $newTitle): bool
     {
-        if (empty($newTitle) || strlen($newTitle) > 31) {
-            throw new InvalidArgumentException("El título de la hoja debe tener entre 1 y 31 caracteres");
+        if (empty($newTitle) || mb_strlen($newTitle) > 31) {
+            throw new \InvalidArgumentException('El título de la hoja debe tener entre 1 y 31 caracteres');
         }
 
         if (preg_match('/[\\:*?\/\[\]]/', $newTitle)) {
-            throw new InvalidArgumentException("El título contiene caracteres no permitidos: \\ : * ? / [ ]");
+            throw new \InvalidArgumentException('El título contiene caracteres no permitidos: \\ : * ? / [ ]');
         }
 
         try {
@@ -314,9 +313,11 @@ class SpreadsheetWriter implements WriterInterface
                 : $this->writer->getSheet($sheetIndexOrTitle);
 
             $sheet->setTitle($newTitle);
+
             return true;
         } catch (\Exception $e) {
-            error_log("Error al renombrar hoja: " . $e->getMessage());
+            error_log('Error al renombrar hoja: '.$e->getMessage());
+
             return false;
         }
     }

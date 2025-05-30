@@ -12,6 +12,8 @@ namespace CarlosChininin\Spreadsheet\Reader;
 interface ReaderInterface
 {
     public function load(string $fileName): static;
+
     public function data(bool $multipleSheet = false): array;
+
     public function iterator(callable $callback): static;
 }

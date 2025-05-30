@@ -22,7 +22,7 @@ use Vtiful\Kernel\Excel;
 use Vtiful\Kernel\Format;
 
 /**
- * Spreadsheet writer fast
+ * Spreadsheet writer fast.
  */
 class SpreadsheetWriter implements WriterInterface
 {
@@ -46,7 +46,7 @@ class SpreadsheetWriter implements WriterInterface
         };
     }
 
-    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string $format = null, DataType $type = null): static
+    public function setCellValue(string|int $col, int $row, mixed $value, DataFormat|string|null $format = null, ?DataType $type = null): static
     {
         if (null === $value) {
             return $this;
@@ -76,7 +76,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function mergeCells(string|array $start, string|array $end, mixed $value = null, array $style = null): static
+    public function mergeCells(string|array $start, string|array $end, mixed $value = null, ?array $style = null): static
     {
         // No implement in this library
         return $this;
@@ -97,7 +97,7 @@ class SpreadsheetWriter implements WriterInterface
             : File::download($fileName, $this->writer->output());
     }
 
-    public function columnAutoSize(string|int $start = null, string|int $end = null): static
+    public function columnAutoSize(string|int|null $start = null, string|int|null $end = null): static
     {
         // No implement in this library
         return $this;
@@ -109,7 +109,7 @@ class SpreadsheetWriter implements WriterInterface
         return $this;
     }
 
-    public function formatCells(DataFormat|string $format, string|array $start, string|array $end = null): static
+    public function formatCells(DataFormat|string $format, string|array $start, string|array|null $end = null): static
     {
         // No implement in this library
         return $this;

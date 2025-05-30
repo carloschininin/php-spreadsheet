@@ -22,7 +22,7 @@ class WriterOptions
         public readonly SpreadsheetType $type = SpreadsheetType::XLSX,
         int $row = 1,
         string $col = 'A',
-        string $endCol = null,
+        ?string $endCol = null,
         public ?int $numCols = null,
         public readonly bool $headerStyle = true,
         public readonly DataFormat $formatDate = DataFormat::DATE_DMYSLASH,
