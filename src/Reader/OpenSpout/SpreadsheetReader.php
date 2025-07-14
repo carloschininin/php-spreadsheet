@@ -26,14 +26,14 @@ class SpreadsheetReader implements ReaderInterface
 
     protected AbstractReader $reader;
 
-    private function __construct(string $fileName, ReaderOptions $options)
+    private function __construct(string $fileName, ?ReaderOptions $options)
     {
         $this->startReader($fileName, $options);
     }
 
     public static function create(string $fileName, ?ReaderOptions $options = null): static
     {
-        return new self($fileName, $options ?? new ReaderOptions());
+        return new self($fileName, $options);
     }
 
     public function load(string $fileName, ?ReaderOptions $options = null): static

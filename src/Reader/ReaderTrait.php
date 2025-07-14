@@ -14,7 +14,7 @@ use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 trait ReaderTrait
 {
     protected SpreadsheetType $type;
-    protected ReaderOptions $options;
+    protected ?ReaderOptions $options = null;
     protected string $fileName;
 
     protected function getType(string $fileName): SpreadsheetType
