@@ -12,15 +12,15 @@
     }
   ],
   "require": {
-    "php": "^8.3",
+    "php": "^8.4",
     "ext-zip": "*",
-    "openspout/openspout": "^4.19",
-    "phpoffice/phpspreadsheet": "^3.5|^4.0|^5.0",
-    "symfony/http-foundation": "^6.0|^7.0",
-    "symfony/mime": "^6.0|^7.0"
+    "openspout/openspout": "^4.30",
+    "phpoffice/phpspreadsheet": "^4.0|^5.0",
+    "symfony/http-foundation": "^6.0|^7.0|^8.0",
+    "symfony/mime": "^6.0|^7.0|^8.0"
   },
   "require-dev": {
-    "friendsofphp/php-cs-fixer": "^v3.50"
+    "friendsofphp/php-cs-fixer": "^v3.70"
   },
   "config": {
     "optimize-autoloader": true,
