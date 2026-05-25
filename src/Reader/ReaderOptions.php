@@ -13,6 +13,7 @@ readonly class ReaderOptions
 {
     public function __construct(
         public ?string $fieldDelimiter = null,
+        public int $readChunkSize = 1000,
     ) {
     }
 }

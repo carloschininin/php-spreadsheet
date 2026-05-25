@@ -16,6 +16,8 @@ use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 use CarlosChininin\Spreadsheet\Writer\PhpSpreadsheet\SpreadsheetWriter;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet as PhpSpreadsheetDocument;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 final class PhpSpreadsheetWriterReaderTest extends FunctionalTestCase
 {
@@ -122,5 +124,46 @@ final class PhpSpreadsheetWriterReaderTest extends FunctionalTestCase
 
         self::assertSame(['clave', 'valor'], $rows[0]);
         self::assertSame(['total', 2], $rows[1]);
+    }
+
+    public function testPhpSpreadsheetReaderIteratorReadsRowsInChunks(): void
+    {
+        $spreadsheet = new PhpSpreadsheetDocument();
+        $spreadsheet->getActiveSheet()->fromArray(
+            [
+                ['ID', 'Nombre', 'Extra'],
+                [1, 'Ana', null],
+                [2, null, 'X'],
+                [3, 'Luis', 'Y'],
+            ],
+            startCell: 'A1',
+            strictNullComparison: true,
+        );
+
+        $file = $this->tempDir.'/chunked-reader.xlsx';
+        (new Xlsx($spreadsheet))->save($file);
+        $spreadsheet->disconnectWorksheets();
+
+        $rows = [];
+        $indexes = [];
+        $reader = SpreadsheetReader::create($file, new ReaderOptions(readChunkSize: 2));
+
+        $reader->iterator(static function (array $cells, int $index) use (&$rows, &$indexes): void {
+            $indexes[] = $index;
+            $rows[] = $cells;
+        });
+
+        self::assertSame([1, 2, 3, 4], $indexes);
+        self::assertSame(
+            [
+                ['ID', 'Nombre', 'Extra'],
+                [1, 'Ana', null],
+                [2, null, 'X'],
+                [3, 'Luis', 'Y'],
+            ],
+            $rows,
+        );
+
+        self::assertSame(['ID', 'Nombre', 'Extra'], $reader->data()[0]);
     }
 }

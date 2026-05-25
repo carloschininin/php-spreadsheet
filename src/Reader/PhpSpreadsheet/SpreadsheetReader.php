@@ -13,9 +13,9 @@ use CarlosChininin\Spreadsheet\Reader\ReaderInterface;
 use CarlosChininin\Spreadsheet\Reader\ReaderOptions;
 use CarlosChininin\Spreadsheet\Reader\ReaderTrait;
 use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
-use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Reader\BaseReader;
 use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Reader\Ods as OdsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
@@ -66,22 +66,46 @@ class SpreadsheetReader implements ReaderInterface
 
     public function iterator(callable $callback): static
     {
-        $spreadsheet = null;
+        $worksheetInfo = $this->reader->listWorksheetInfo($this->fileName);
+        if ([] === $worksheetInfo || $worksheetInfo[0]['totalRows'] < 1) {
+            return $this;
+        }
+
+        $chunkSize = max(1, $this->options?->readChunkSize ?? 1000);
+        $firstSheet = $worksheetInfo[0];
+        $totalRows = $firstSheet['totalRows'];
+        $lastColumn = $firstSheet['lastColumnLetter'];
+        $chunkFilter = new ChunkReadFilter();
+
+        $readFilter = $this->reader->getReadFilter();
+        $loadSheetsOnly = $this->reader->getLoadSheetsOnly();
+        $readEmptyCells = $this->reader->getReadEmptyCells();
+
         try {
-            $spreadsheet = $this->reader->load($this->fileName);
+            $this->reader
+                ->setReadFilter($chunkFilter)
+                ->setLoadSheetsOnly($firstSheet['worksheetName'])
+                ->setReadEmptyCells(false);
 
-            foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
-                foreach ($sheet->getRowIterator() as $index => $row) {
-                    $cells = array_map(static fn (Cell $cell) => $cell->getValue(), iterator_to_array($row->getCellIterator(iterateOnlyExistingCells: false), false));
-                    \call_user_func($callback, $cells, $index);
+            for ($startRow = 1; $startRow <= $totalRows; $startRow += $chunkSize) {
+                $endRow = min($startRow + $chunkSize - 1, $totalRows);
+                $chunkFilter->setRows($startRow, $chunkSize);
+
+                $spreadsheet = null;
+                try {
+                    $spreadsheet = $this->reader->load($this->fileName);
+                    $sheet = $spreadsheet->getActiveSheet();
+                    foreach ($sheet->rangeToArrayYieldRows("A{$startRow}:{$lastColumn}{$endRow}", null, false, false) as $offset => $cells) {
+                        \call_user_func($callback, $cells, $startRow + $offset);
+                    }
+                } finally {
+                    $this->disconnectSpreadsheet($spreadsheet);
                 }
-
-                break; // only first sheet
             }
 
             return $this;
         } finally {
-            $this->disconnectSpreadsheet($spreadsheet);
+            $this->restoreReaderState($readFilter, $loadSheetsOnly, $readEmptyCells);
         }
     }
 
@@ -115,5 +139,23 @@ class SpreadsheetReader implements ReaderInterface
         if (null !== $spreadsheet) {
             $spreadsheet->disconnectWorksheets();
         }
+    }
+
+    /**
+     * @param string[]|null $loadSheetsOnly
+     */
+    private function restoreReaderState(IReadFilter $readFilter, ?array $loadSheetsOnly, bool $readEmptyCells): void
+    {
+        $this->reader
+            ->setReadFilter($readFilter)
+            ->setReadEmptyCells($readEmptyCells);
+
+        if (null === $loadSheetsOnly) {
+            $this->reader->setLoadAllSheets();
+
+            return;
+        }
+
+        $this->reader->setLoadSheetsOnly($loadSheetsOnly);
     }
 }
