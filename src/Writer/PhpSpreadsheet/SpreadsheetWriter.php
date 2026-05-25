@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace CarlosChininin\Spreadsheet\Writer\PhpSpreadsheet;
 
 use CarlosChininin\Spreadsheet\Shared\Color;
-use CarlosChininin\Spreadsheet\Shared\Column;
 use CarlosChininin\Spreadsheet\Shared\DataFormat;
 use CarlosChininin\Spreadsheet\Shared\DataHelper;
 use CarlosChininin\Spreadsheet\Shared\DataType;
@@ -20,6 +19,8 @@ use CarlosChininin\Spreadsheet\Writer\WriterException;
 use CarlosChininin\Spreadsheet\Writer\WriterInterface;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use CarlosChininin\Spreadsheet\Writer\WriterTrait;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType as PhpSpreadsheetDataType;
 use PhpOffice\PhpSpreadsheet\Exception;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -28,6 +29,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
+use PhpOffice\PhpSpreadsheet\Writer\IWriter;
 use PhpOffice\PhpSpreadsheet\Writer\Ods;
 use PhpOffice\PhpSpreadsheet\Writer\Xls;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -48,9 +50,16 @@ class SpreadsheetWriter implements WriterInterface
         protected readonly iterable $headers = [],
         protected readonly WriterOptions $options = new WriterOptions(),
     ) {
-        $this->filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
+        $this->filePath = $this->createTempFilePath();
         $this->writer = new Spreadsheet();
         $this->processOptions($this->options);
+    }
+
+    public function __destruct()
+    {
+        if (isset($this->writer)) {
+            $this->writer->disconnectWorksheets();
+        }
     }
 
     public function execute(bool $direct = true): static
@@ -59,25 +68,15 @@ class SpreadsheetWriter implements WriterInterface
         $row = $this->row();
         $sheet = $this->writer->getActiveSheet();
         $sheet->fromArray($this->headers, startCell: $col.$row, strictNullComparison: true);
+
         if ($direct) {
             $sheet->fromArray($this->data, startCell: $col.($row + 1), strictNullComparison: true);
         } else {
-            $startRow = $row + 1;
-            $startCol = \ord($this->col()) - \ord('A');
-            foreach ($this->data as $dataRow) {
-                $column = $startCol;
-                foreach ($dataRow as $value) {
-                    $this->setCellValue(++$column, $startRow, $value);
-                }
-                ++$startRow;
-            }
+            $this->writeDataRows($row + 1, $this->columnIndex($col));
         }
 
         if ($this->options->headerStyle) {
-            try {
-                $sheet->getStyle($this->range())->applyFromArray($this->headerStyle());
-            } catch (Exception) {
-            }
+            $this->styleCells($this->col().$this->row(), $this->endCol().$this->row(), $this->headerStyle());
         }
 
         return $this;
@@ -110,7 +109,7 @@ class SpreadsheetWriter implements WriterInterface
             return $this;
         }
 
-        if (\is_bool($value)) {
+        if (\is_bool($value) && null === $type) {
             $sheet->setCellValue($position, DataHelper::boolToString($value));
 
             return $this;
@@ -118,25 +117,26 @@ class SpreadsheetWriter implements WriterInterface
 
         if (null === $type) {
             $sheet->setCellValue($position, $value);
-        } else {
-            $sheet->setCellValueExplicit($position, $value, $type->value);
+
+            return $this;
         }
+
+        [$value, $dataType] = $this->normalizeTypedValue($value, $type);
+        $sheet->setCellValueExplicit($position, $value, $dataType);
 
         return $this;
     }
 
     public function fromArray(string|int $col, int $row, mixed $data, mixed $style = null): static
     {
-        $colLabel = \is_string($col) ? $col : Column::numberToLabel($col + \ord('A') - 1);
+        $colLabel = $this->columnLabel($col);
 
         $sheet = $this->writer->getActiveSheet();
         $sheet->fromArray($data, startCell: $colLabel.$row, strictNullComparison: true);
 
         if (null !== $style) {
-            $count = isset($data[0]) ? count($data[0]) - 1 : 0;
-            $range = $this->positionRange([$col, $row], [$col + $count, $row]);
             try {
-                $sheet->getStyle($range)->applyFromArray($style);
+                $sheet->getStyle($this->arrayRange($col, $row, $data))->applyFromArray($style);
             } catch (Exception) {
                 throw new WriterException('Failed style cells');
             }
@@ -206,20 +206,11 @@ class SpreadsheetWriter implements WriterInterface
     public function columnAutoSize(string|int|null $start = null, string|int|null $end = null): static
     {
         $sheet = $this->writer->getActiveSheet();
-        if (\is_int($start)) {
-            $columnStart = $start + \ord('A') - 1;
-        } else {
-            $columnStart = $start ? \ord($start) : \ord($this->col());
-        }
-
-        if (\is_int($end)) {
-            $columnEnd = $end + \ord('A') - 1;
-        } else {
-            $columnEnd = $end ? \ord($end) : ($this->numCols() + $columnStart + 1);
-        }
+        $columnStart = $this->columnIndex($start ?? $this->col());
+        $columnEnd = $this->columnIndex($end ?? $this->endCol());
 
         for ($i = $columnStart; $i <= $columnEnd; ++$i) {
-            $sheet->getColumnDimension(Column::numberToLabel($i))->setAutoSize(true);
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
         }
 
         return $this;
@@ -259,12 +250,7 @@ class SpreadsheetWriter implements WriterInterface
 
     public function saveFile(): void
     {
-        $writer = match ($this->options->type) {
-            SpreadsheetType::CSV => new Csv($this->writer),
-            SpreadsheetType::ODS => new Ods($this->writer),
-            SpreadsheetType::XLS => new Xls($this->writer),
-            default => new Xlsx($this->writer),
-        };
+        $writer = $this->createWriter();
 
         try {
             $writer->save($this->filePath);
@@ -275,7 +261,12 @@ class SpreadsheetWriter implements WriterInterface
 
     public function addSheet(string $title, bool $isActive = true): static
     {
-        $this->writer->addSheet(new Worksheet($this->writer, $title));
+        try {
+            $this->writer->addSheet(new Worksheet($this->writer, $title));
+        } catch (Exception) {
+            throw new WriterException('Failed add sheet');
+        }
+
         if ($isActive) {
             $this->activeSheet($title);
         }
@@ -285,7 +276,11 @@ class SpreadsheetWriter implements WriterInterface
 
     public function activeSheet(string $title): static
     {
-        $this->writer->setActiveSheetIndexByName($title);
+        try {
+            $this->writer->setActiveSheetIndexByName($title);
+        } catch (Exception) {
+            throw new WriterException('Failed active sheet');
+        }
 
         return $this;
     }
@@ -308,9 +303,13 @@ class SpreadsheetWriter implements WriterInterface
         }
 
         try {
-            $sheet = is_string($sheetIndexOrTitle)
+            $sheet = \is_string($sheetIndexOrTitle)
                 ? $this->writer->getSheetByName($sheetIndexOrTitle)
                 : $this->writer->getSheet($sheetIndexOrTitle);
+
+            if (null === $sheet) {
+                return false;
+            }
 
             $sheet->setTitle($newTitle);
 
@@ -331,5 +330,84 @@ class SpreadsheetWriter implements WriterInterface
         if ($options->removeSheet) {
             $this->removeInitialSheet();
         }
+    }
+
+    private function writeDataRows(int $startRow, int $startColumn): void
+    {
+        foreach ($this->data as $dataRow) {
+            $column = $startColumn;
+            foreach ($dataRow as $key => $value) {
+                $this->setCellValue($column, $startRow, $value, type: $this->options->dataTypes[$key] ?? null);
+                ++$column;
+            }
+            ++$startRow;
+        }
+    }
+
+    private function normalizeTypedValue(mixed $value, DataType $type): array
+    {
+        return match ($type) {
+            DataType::FLOAT => [(float) $value, PhpSpreadsheetDataType::TYPE_NUMERIC],
+            DataType::INT => [(int) $value, PhpSpreadsheetDataType::TYPE_NUMERIC],
+            DataType::BOOL => [(bool) $value, PhpSpreadsheetDataType::TYPE_BOOL],
+            default => [$value, $this->mapDataType($type)],
+        };
+    }
+
+    private function mapDataType(DataType $type): string
+    {
+        return match ($type) {
+            DataType::STRING => PhpSpreadsheetDataType::TYPE_STRING,
+            DataType::FORMULA => PhpSpreadsheetDataType::TYPE_FORMULA,
+            DataType::NUMERIC => PhpSpreadsheetDataType::TYPE_NUMERIC,
+            DataType::BOOL => PhpSpreadsheetDataType::TYPE_BOOL,
+            DataType::NULL => PhpSpreadsheetDataType::TYPE_NULL,
+            DataType::ERROR => PhpSpreadsheetDataType::TYPE_ERROR,
+            DataType::DATE => PhpSpreadsheetDataType::TYPE_ISO_DATE,
+            DataType::FLOAT, DataType::INT => PhpSpreadsheetDataType::TYPE_NUMERIC,
+        };
+    }
+
+    private function createWriter(): IWriter
+    {
+        return match ($this->options->type) {
+            SpreadsheetType::CSV => new Csv($this->writer),
+            SpreadsheetType::ODS => new Ods($this->writer),
+            SpreadsheetType::XLS => new Xls($this->writer),
+            default => new Xlsx($this->writer),
+        };
+    }
+
+    private function createTempFilePath(): string
+    {
+        $filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
+        if (false === $filePath) {
+            throw new WriterException('Failed create temporary file');
+        }
+
+        return $filePath;
+    }
+
+    private function columnIndex(string|int $column): int
+    {
+        return \is_int($column) ? $column : Coordinate::columnIndexFromString($column);
+    }
+
+    private function columnLabel(string|int $column): string
+    {
+        return \is_int($column) ? Coordinate::stringFromColumnIndex($column) : mb_strtoupper($column);
+    }
+
+    private function arrayRange(string|int $col, int $row, mixed $data): string
+    {
+        $firstColumn = $this->columnIndex($col);
+        $columnCount = 1;
+        if (\is_array($data) && isset($data[0]) && is_countable($data[0])) {
+            $columnCount = max(1, \count($data[0]));
+        }
+
+        $lastColumn = $firstColumn + $columnCount - 1;
+
+        return Coordinate::stringFromColumnIndex($firstColumn).$row.':'.Coordinate::stringFromColumnIndex($lastColumn).$row;
     }
 }

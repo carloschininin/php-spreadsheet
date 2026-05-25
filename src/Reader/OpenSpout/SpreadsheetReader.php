@@ -17,12 +17,20 @@ use CarlosChininin\Spreadsheet\Shared\SpreadsheetType;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Exception\IOException;
 use OpenSpout\Reader\AbstractReader;
+use OpenSpout\Reader\CSV\Options as CsvOptions;
+use OpenSpout\Reader\CSV\Reader as OpenSpoutCsvReader;
 use OpenSpout\Reader\Exception\ReaderNotOpenedException;
+use OpenSpout\Reader\ODS\Options as OdsOptions;
+use OpenSpout\Reader\ODS\Reader as OdsReader;
 use OpenSpout\Reader\SheetInterface;
+use OpenSpout\Reader\XLSX\Options as XlsxOptions;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
 class SpreadsheetReader implements ReaderInterface
 {
     use ReaderTrait;
+
+    private const string DEFAULT_CSV_DELIMITER = ';';
 
     protected AbstractReader $reader;
 
@@ -58,11 +66,11 @@ class SpreadsheetReader implements ReaderInterface
                 $cells[$sheet->getName()] = $this->getDataSheet($sheet);
             }
 
-            $this->reader->close();
-
             return $cells;
         } catch (IOException|ReaderNotOpenedException $e) {
             throw new ReaderException($e->getMessage());
+        } finally {
+            $this->reader->close();
         }
     }
 
@@ -79,11 +87,12 @@ class SpreadsheetReader implements ReaderInterface
 
                 break; // only first sheet
             }
-            $this->reader->close();
 
             return $this;
         } catch (IOException|ReaderNotOpenedException $e) {
             throw new ReaderException($e->getMessage());
+        } finally {
+            $this->reader->close();
         }
     }
 
@@ -97,9 +106,9 @@ class SpreadsheetReader implements ReaderInterface
         $this->fileName = $fileName;
         $this->options = $options ?? $this->options;
         $this->reader = match ($this->type) {
-            SpreadsheetType::ODS => OdsReader::create($this->options),
-            SpreadsheetType::CSV => CsvReader::create($this->options),
-            default => XlsxReader::create($this->options),
+            SpreadsheetType::ODS => new OdsReader(new OdsOptions()),
+            SpreadsheetType::CSV => $this->createCsvReader($this->options),
+            default => new XlsxReader(new XlsxOptions()),
         };
     }
 
@@ -111,6 +120,14 @@ class SpreadsheetReader implements ReaderInterface
         }
 
         return $cells;
+    }
+
+    private function createCsvReader(?ReaderOptions $options): OpenSpoutCsvReader
+    {
+        return new OpenSpoutCsvReader(new CsvOptions(
+            SHOULD_PRESERVE_EMPTY_ROWS: true,
+            FIELD_DELIMITER: $options?->fieldDelimiter ?? self::DEFAULT_CSV_DELIMITER,
+        ));
     }
 
     private function getRowCells(object $row): array

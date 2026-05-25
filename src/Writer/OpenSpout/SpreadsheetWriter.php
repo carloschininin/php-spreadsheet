@@ -46,45 +46,35 @@ class SpreadsheetWriter implements WriterInterface
     protected string $filePath;
     protected WriterState $state = WriterState::Close;
 
-    /**
-     * @throws \Exception
-     */
     public function __construct(
         protected readonly iterable $data = [],
         protected readonly iterable $headers = [],
         protected readonly WriterOptions $options = new WriterOptions(),
     ) {
-        $this->writer = match ($this->options->type) {
-            SpreadsheetType::ODS => new OdsWriter(),
-            SpreadsheetType::CSV => new CsvWriter(),
-            default => new XlsxWriter(new XlsxOptions(properties: new XlsxProperties(
-                application: 'PIDIA SRL',
-                creator: 'PIDIA SRL',
-                lastModifiedBy: 'PIDIA SRL',
-            ))),
-        };
-        if (!$this->writer instanceof XlsxWriter) {
-            $this->writer->setCreator('PIDIA SRL');
+        $this->writer = $this->createWriter();
+        $this->filePath = $this->createTempFilePath();
+    }
+
+    public function __destruct()
+    {
+        if (WriterState::Open === $this->state) {
+            $this->closeWriter();
         }
-        $this->filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
     }
 
     public function execute(bool $direct = true): static
     {
         try {
-            $this->writer->openToFile($this->filePath);
-            // Header
+            $this->openWriter();
             $headerStyle = $this->options->headerStyle ? $this->headerStyle() : null;
             $this->writer->addRow(Helper::createRowHeader($this->headers, $headerStyle));
-            // Data
-            $options = $this->options;
             foreach ($this->data as $dataRow) {
-                $this->writer->addRow(Helper::createRow($dataRow, $options));
+                $this->writer->addRow(Helper::createRow($dataRow, $this->options));
             }
-
-            $this->writer->close();
-        } catch (IOException|WriterNotOpenedException) {
-            throw new WriterException('Failed create spreadsheet');
+            $this->closeWriter();
+        } catch (IOException|WriterNotOpenedException|InvalidSheetNameException $e) {
+            $this->closeWriter();
+            throw new WriterException('Failed create spreadsheet: '.$e->getMessage());
         }
 
         return $this;
@@ -107,11 +97,7 @@ class SpreadsheetWriter implements WriterInterface
 
     public function download(string $fileName, bool $useZip = false): Response
     {
-        if (WriterState::Open === $this->state) {
-            $this->state = WriterState::Close;
-            $this->writer->close();
-        }
-
+        $this->closeWriter();
         $fileName = File::updateFileName($fileName, $this->options->type);
 
         return $useZip
@@ -128,23 +114,17 @@ class SpreadsheetWriter implements WriterInterface
     public function fromArray(string|int $col, int $row, mixed $data, mixed $style = null): static
     {
         try {
-            if (WriterState::Close === $this->state) {
-                $this->state = WriterState::Open;
-                $this->writer->openToFile($this->filePath);
-                if ($this->options->nameSheet) {
-                    $sheet = $this->writer->getCurrentSheet();
-                    $sheet->setName(mb_substr($this->options->nameSheet, 0, 31));
-                }
-            }
-
+            $this->openWriter();
+            $rowStyle = $style instanceof Style ? $style : null;
             foreach ($data as $dataRow) {
-                $row = $style
-                    ? Helper::createRowHeader($dataRow, $style)
-                    : Helper::createRow($dataRow, $this->options);
-
-                $this->writer->addRow($row);
+                $this->writer->addRow(
+                    null !== $rowStyle
+                        ? Helper::createRowHeader($dataRow, $rowStyle)
+                        : Helper::createRow($dataRow, $this->options),
+                );
             }
         } catch (IOException|WriterNotOpenedException|InvalidSheetNameException $e) {
+            $this->closeWriter();
             throw new WriterException('Failed create spreadsheet: '.$e->getMessage());
         }
 
@@ -180,15 +160,16 @@ class SpreadsheetWriter implements WriterInterface
 
     public function addSheet(string $title, bool $isActive = true): static
     {
-        try {
-            if (WriterState::Close === $this->state) {
-                $this->state = WriterState::Open;
-                $this->writer->openToFile($this->filePath);
-            }
+        if (!method_exists($this->writer, 'addNewSheetAndMakeItCurrent')) {
+            return $this;
+        }
 
+        try {
+            $this->openWriter();
             $sheet = $this->writer->addNewSheetAndMakeItCurrent();
-            $sheet->setName($title);
+            $sheet->setName($this->normalizeSheetTitle($title));
         } catch (IOException|WriterNotOpenedException|InvalidSheetNameException $e) {
+            $this->closeWriter();
             throw new WriterException($e->getMessage());
         }
 
@@ -211,5 +192,77 @@ class SpreadsheetWriter implements WriterInterface
     {
         // No implement in this library
         return true;
+    }
+
+    private function createWriter(): AbstractWriter
+    {
+        $writer = match ($this->options->type) {
+            SpreadsheetType::ODS => new OdsWriter(),
+            SpreadsheetType::CSV => new CsvWriter(),
+            default => new XlsxWriter(new XlsxOptions(properties: new XlsxProperties(
+                application: 'PIDIA SRL',
+                creator: 'PIDIA SRL',
+                lastModifiedBy: 'PIDIA SRL',
+            ))),
+        };
+
+        if (!$writer instanceof XlsxWriter) {
+            $writer->setCreator('PIDIA SRL');
+        }
+
+        return $writer;
+    }
+
+    private function createTempFilePath(): string
+    {
+        $filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
+        if (false === $filePath) {
+            throw new WriterException('Failed create temporary file');
+        }
+
+        return $filePath;
+    }
+
+    /**
+     * @throws IOException
+     * @throws InvalidSheetNameException
+     */
+    private function openWriter(): void
+    {
+        if (WriterState::Open === $this->state) {
+            return;
+        }
+
+        $this->writer->openToFile($this->filePath);
+        $this->state = WriterState::Open;
+        $this->renameInitialSheet();
+    }
+
+    private function closeWriter(): void
+    {
+        if (WriterState::Close === $this->state) {
+            return;
+        }
+
+        $this->writer->close();
+        $this->state = WriterState::Close;
+    }
+
+    /**
+     * @throws InvalidSheetNameException
+     * @throws WriterNotOpenedException
+     */
+    private function renameInitialSheet(): void
+    {
+        if (!$this->options->nameSheet || !method_exists($this->writer, 'getCurrentSheet')) {
+            return;
+        }
+
+        $this->writer->getCurrentSheet()->setName($this->normalizeSheetTitle($this->options->nameSheet));
+    }
+
+    private function normalizeSheetTitle(string $title): string
+    {
+        return mb_substr($title, 0, 31);
     }
 }

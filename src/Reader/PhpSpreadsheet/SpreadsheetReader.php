@@ -19,6 +19,7 @@ use PhpOffice\PhpSpreadsheet\Reader\Csv as CsvReader;
 use PhpOffice\PhpSpreadsheet\Reader\Ods as OdsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
 class SpreadsheetReader implements ReaderInterface
 {
@@ -45,33 +46,43 @@ class SpreadsheetReader implements ReaderInterface
 
     public function data(bool $multipleSheet = false): array
     {
-        $spreadsheet = $this->reader->load($this->fileName);
-        if (!$multipleSheet) {
-            return $spreadsheet->getActiveSheet()->toArray(formatData: false, ignoreHidden: true);
-        }
+        $spreadsheet = null;
+        try {
+            $spreadsheet = $this->reader->load($this->fileName);
+            if (!$multipleSheet) {
+                return $spreadsheet->getActiveSheet()->toArray(formatData: false, ignoreHidden: true);
+            }
 
-        $cells = [];
-        foreach ($spreadsheet->getAllSheets() as $sheet) {
-            $cells[$sheet->getTitle()] = $sheet->toArray(formatData: false);
-        }
+            $cells = [];
+            foreach ($spreadsheet->getAllSheets() as $sheet) {
+                $cells[$sheet->getTitle()] = $sheet->toArray(formatData: false);
+            }
 
-        return $cells;
+            return $cells;
+        } finally {
+            $this->disconnectSpreadsheet($spreadsheet);
+        }
     }
 
     public function iterator(callable $callback): static
     {
-        $spreadsheet = $this->reader->load($this->fileName);
+        $spreadsheet = null;
+        try {
+            $spreadsheet = $this->reader->load($this->fileName);
 
-        foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
-            foreach ($sheet->getRowIterator() as $index => $row) {
-                $cells = array_map(fn (Cell $cell) => $cell->getValue(), iterator_to_array($row->getCellIterator(), false));
-                \call_user_func($callback, $cells, $index);
+            foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
+                foreach ($sheet->getRowIterator() as $index => $row) {
+                    $cells = array_map(static fn (Cell $cell) => $cell->getValue(), iterator_to_array($row->getCellIterator(iterateOnlyExistingCells: false), false));
+                    \call_user_func($callback, $cells, $index);
+                }
+
+                break; // only first sheet
             }
 
-            break; // only first sheet
+            return $this;
+        } finally {
+            $this->disconnectSpreadsheet($spreadsheet);
         }
-
-        return $this;
     }
 
     protected function startReader(string $fileName, ?ReaderOptions $options): void
@@ -80,12 +91,29 @@ class SpreadsheetReader implements ReaderInterface
         $this->fileName = $fileName;
         $this->options = $options ?? $this->options;
         $this->reader = match ($this->type) {
-            SpreadsheetType::ODS => new OdsReader(), // Failed
-            SpreadsheetType::CSV => new CsvReader(),
+            SpreadsheetType::ODS => new OdsReader(),
+            SpreadsheetType::CSV => $this->createCsvReader($this->options),
             SpreadsheetType::XLS => new XlsReader(),
             default => new XlsxReader(),
         };
 
         $this->reader->setReadDataOnly(true);
+    }
+
+    private function createCsvReader(?ReaderOptions $options): CsvReader
+    {
+        $reader = new CsvReader();
+        if ($options?->fieldDelimiter) {
+            $reader->setDelimiter($options->fieldDelimiter);
+        }
+
+        return $reader;
+    }
+
+    private function disconnectSpreadsheet(?Spreadsheet $spreadsheet): void
+    {
+        if (null !== $spreadsheet) {
+            $spreadsheet->disconnectWorksheets();
+        }
     }
 }
