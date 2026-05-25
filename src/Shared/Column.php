@@ -27,14 +27,12 @@ final class Column
     public static function labelToNumber(string $column): int
     {
         $column = mb_strtoupper($column);
-        $length = \mb_strlen($column);
-
-        if (1 === $length) {
-            return \ord($column) - \ord('A');
+        $length = mb_strlen($column);
+        $number = 0;
+        for ($i = 0; $i < $length; ++$i) {
+            $number = $number * 26 + (\ord($column[$i]) - \ord('A') + 1);
         }
-        $lastChar = $column[$length - 1];
-        $restOfColumn = mb_substr($column, 0, -1);
 
-        return 26 * self::labelToNumber($restOfColumn) + (\ord($lastChar) - \ord('A') + 1);
+        return $number - 1;
     }
 }

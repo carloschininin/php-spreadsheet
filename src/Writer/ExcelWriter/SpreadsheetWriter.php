@@ -176,7 +176,7 @@ class SpreadsheetWriter implements WriterInterface
         return uniqid();
     }
 
-    protected function style()
+    protected function style(): mixed
     {
         $fileHandle = $this->writer->getHandle();
 

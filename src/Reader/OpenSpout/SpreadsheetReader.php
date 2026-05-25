@@ -73,7 +73,7 @@ class SpreadsheetReader implements ReaderInterface
             $sheetIterator = $this->reader->getSheetIterator();
             foreach ($sheetIterator as $sheet) {
                 foreach ($sheet->getRowIterator() as $index => $row) {
-                    $cells = array_map(fn (Cell $cell) => $cell->getValue(), $row->getCells());
+                    $cells = array_map(static fn (Cell $cell) => $cell->getValue(), $this->getRowCells($row));
                     \call_user_func($callback, $cells, $index);
                 }
 
@@ -107,9 +107,18 @@ class SpreadsheetReader implements ReaderInterface
     {
         $cells = [];
         foreach ($sheet->getRowIterator() as $row) {
-            $cells[] = array_map(fn (Cell $cell) => $cell->getValue(), $row->getCells());
+            $cells[] = array_map(static fn (Cell $cell) => $cell->getValue(), $this->getRowCells($row));
         }
 
         return $cells;
+    }
+
+    private function getRowCells(object $row): array
+    {
+        if (method_exists($row, 'getCells')) {
+            return $row->getCells();
+        }
+
+        return $row->cells;
     }
 }

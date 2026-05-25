@@ -30,13 +30,13 @@ final class Helper
         }
 
         if ($value instanceof \DateTimeInterface) {
-            $style = $options && $options->formatDate ? (new Style())->setFormat($options->formatDate->value) : null;
+            $style = $options && $options->formatDate ? (new Style())->withFormat($options->formatDate->value) : null;
 
             return new DateTimeCell($value, $style);
         }
 
         if (\is_float($value)) {
-            $style = $options && $options->formatDecimal ? (new Style())->setFormat($options->formatDecimal->value) : null;
+            $style = $options && $options->formatDecimal ? (new Style())->withFormat($options->formatDecimal->value) : null;
 
             return new NumericCell($value, $style);
         }
@@ -46,7 +46,7 @@ final class Helper
         }
 
         if (\is_object($value)) {
-            if (\method_exists($value, '__toString')) {
+            if (method_exists($value, '__toString')) {
                 return new StringCell((string) $value, null);
             }
 
@@ -58,22 +58,22 @@ final class Helper
 
     public static function createRow(array $dataRow, ?WriterOptions $options): Row
     {
-        $row = new Row([]);
+        $cells = [];
         foreach ($dataRow as $key => $value) {
-            $row->addCell(self::valueToCell($value, $options, $key));
+            $cells[] = self::valueToCell($value, $options, $key);
         }
 
-        return $row;
+        return new Row($cells);
     }
 
     public static function createRowHeader(array $dataRow, ?Style $rowStyle = null): Row
     {
-        $row = new Row([]);
+        $cells = [];
         foreach ($dataRow as $value) {
-            $row->addCell(new StringCell($value, $rowStyle));
+            $cells[] = new StringCell($value, $rowStyle);
         }
 
-        return $row;
+        return new Row($cells);
     }
 
     public static function changeTypeValue(mixed $value, DataType $dataType): mixed

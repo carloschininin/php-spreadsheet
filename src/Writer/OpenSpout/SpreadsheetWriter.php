@@ -19,17 +19,19 @@ use CarlosChininin\Spreadsheet\Writer\WriterInterface;
 use CarlosChininin\Spreadsheet\Writer\WriterOptions;
 use CarlosChininin\Spreadsheet\Writer\WriterTrait;
 use OpenSpout\Common\Entity\Style\Border;
+use OpenSpout\Common\Entity\Style\BorderName;
 use OpenSpout\Common\Entity\Style\BorderPart;
 use OpenSpout\Common\Entity\Style\CellAlignment;
 use OpenSpout\Common\Entity\Style\CellVerticalAlignment;
 use OpenSpout\Common\Entity\Style\Style;
-use OpenSpout\Common\Exception\InvalidArgumentException;
 use OpenSpout\Common\Exception\IOException;
 use OpenSpout\Writer\AbstractWriter;
 use OpenSpout\Writer\CSV\Writer as CsvWriter;
 use OpenSpout\Writer\Exception\InvalidSheetNameException;
 use OpenSpout\Writer\Exception\WriterNotOpenedException;
 use OpenSpout\Writer\ODS\Writer as OdsWriter;
+use OpenSpout\Writer\XLSX\Options as XlsxOptions;
+use OpenSpout\Writer\XLSX\Properties as XlsxProperties;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -55,9 +57,15 @@ class SpreadsheetWriter implements WriterInterface
         $this->writer = match ($this->options->type) {
             SpreadsheetType::ODS => new OdsWriter(),
             SpreadsheetType::CSV => new CsvWriter(),
-            default => new XlsxWriter(),
+            default => new XlsxWriter(new XlsxOptions(properties: new XlsxProperties(
+                application: 'PIDIA SRL',
+                creator: 'PIDIA SRL',
+                lastModifiedBy: 'PIDIA SRL',
+            ))),
         };
-        $this->writer->setCreator('PIDIA SRL');
+        if (!$this->writer instanceof XlsxWriter) {
+            $this->writer->setCreator('PIDIA SRL');
+        }
         $this->filePath = tempnam($this->options->path ?? sys_get_temp_dir(), uniqid());
     }
 
@@ -151,26 +159,23 @@ class SpreadsheetWriter implements WriterInterface
 
     public function headerStyle(): Style
     {
-        $style = new Style();
-        $style->setFontBold();
-        $style->setFontSize(11);
-        $style->setFontColor(Color::WHITE->value);
-        $style->setShouldWrapText();
-        try {
-            $style->setCellAlignment(CellAlignment::CENTER);
-            $style->setCellVerticalAlignment(CellVerticalAlignment::CENTER);
-        } catch (InvalidArgumentException) {
-        }
-        $style->setBackgroundColor(Color::HEADER->value);
         $border = new Border(
-            new BorderPart(Border::TOP),
-            new BorderPart(Border::BOTTOM),
-            new BorderPart(Border::LEFT),
-            new BorderPart(Border::RIGHT),
+            new BorderPart(BorderName::TOP),
+            new BorderPart(BorderName::BOTTOM),
+            new BorderPart(BorderName::LEFT),
+            new BorderPart(BorderName::RIGHT),
         );
-        $style->setBorder($border);
 
-        return $style;
+        return new Style(
+            fontBold: true,
+            fontSize: 11,
+            fontColor: Color::WHITE->value,
+            cellAlignment: CellAlignment::CENTER,
+            cellVerticalAlignment: CellVerticalAlignment::CENTER,
+            shouldWrapText: true,
+            border: $border,
+            backgroundColor: Color::HEADER->value,
+        );
     }
 
     public function addSheet(string $title, bool $isActive = true): static
